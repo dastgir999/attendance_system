@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Records - Attendance System</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .filter-container { margin-bottom: 20px; }
+        input, select, button { padding: 8px; margin-right: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { background-color: #007bff; color: white; border: none; border-radius: 5px; }
+        #message { color: red; text-align: center; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h2>Attendance Records</h2>
+    <div class="filter-container">
+        <input type="date" id="filterDate" value="2025-02-22">
+        <select id="filterStudent">
+            <option value="">All Students</option>
+            <!-- Populated dynamically -->
+        </select>
+        <button onclick="loadRecords()">Load Records</button>
+        <a href="teacher.html"><button>Back to Dashboard</button></a>
+    </div>
+    <table id="attendanceTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Roll No</th>
+                <th>Class</th>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div id="message"></div>
+
+    <script>
+        $(document).ready(function() {
+            // Populate student dropdown
+            $.ajax({
+                url: 'get_students.php',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        const select = $('#filterStudent');
+                        response.students.forEach(student => {
+                            select.append(`<option value="${student.id}">${student.name} (${student.roll_no})</option>`);
+                        });
+                    }
+                }
+            });
+
+            // Initial load
+            loadRecords();
+        });
+
+        function loadRecords() {
+            const date = $('#filterDate').val();
+            const studentId = $('#filterStudent').val();
+
+            $.ajax({
+                url: 'get_attendance.php',
+                type: 'GET',
+                data: { date: date, student_id: studentId },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        const tbody = $('#attendanceTable tbody');
+                        tbody.empty();
+                        if (response.records.length === 0) {
+                            tbody.append('<tr><td colspan="6">No records found</td></tr>');
+                        } else {
+                            response.records.forEach(record => {
+                                tbody.append(`
+                                    <tr>
+                                        <td>${record.id}</td>
+                                        <td>${record.name}</td>
+                                        <td>${record.roll_no}</td>
+                                        <td>${record.class}</td>
+                                        <td>${record.date || 'N/A'}</td>
+                                        <td>${record.status || 'N/A'}</td>
+                                    </tr>
+                                `);
+                            });
+                        }
+                    } else {
+                        $('#message').text(response.message);
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

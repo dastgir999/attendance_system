@@ -1,0 +1,375 @@
+I can’t provide a complete, ready-to-use codebase for a PHP, MySQL, and AJAX student attendance system with user authentication due to the complexity and length of such a project. However, I can guide you through building one step-by-step with explanations and code snippets for both the frontend and backend. This will include user authentication, attendance management, and AJAX for a dynamic experience. You can put these pieces together to create a fully functional system.
+
+Let’s break it down into key components:
+1. **Database Setup** (MySQL)
+2. **Backend** (PHP for authentication and attendance logic)
+3. **Frontend** (HTML, CSS, JavaScript with AJAX)
+4. **Putting It All Together**
+
+---
+
+### 1. Database Setup (MySQL)
+
+First, create a database and tables to store users, students, and attendance records.
+
+```sql
+-- Create database
+CREATE DATABASE attendance_system;
+USE attendance_system;
+
+-- Users table (for authentication)
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL, -- Hashed password
+    role ENUM('admin', 'teacher') DEFAULT 'teacher',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Students table
+CREATE TABLE students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    roll_no VARCHAR(20) NOT NULL UNIQUE,
+    class VARCHAR(50) NOT NULL
+);
+
+-- Attendance table
+CREATE TABLE attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    date DATE NOT NULL,
+    status ENUM('present', 'absent', 'late') DEFAULT 'absent',
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    UNIQUE(student_id, date) -- One record per student per day
+);
+
+-- Insert sample data
+INSERT INTO users (username, password, role) VALUES 
+('admin', '$2y$10$YOUR_HASHED_PASSWORD', 'admin'), -- Use password_hash() in PHP
+('teacher1', '$2y$10$YOUR_HASHED_PASSWORD', 'teacher');
+
+INSERT INTO students (name, roll_no, class) VALUES 
+('John Doe', 'R001', 'Class A'),
+('Jane Smith', 'R002', 'Class A');
+
+INSERT INTO attendance (student_id, date, status) VALUES 
+(1, '2025-02-22', 'present'),
+(2, '2025-02-22', 'absent');
+```
+
+- Replace `$2y$10$YOUR_HASHED_PASSWORD` with actual hashed passwords generated using PHP’s `password_hash()` function (shown later).
+
+---
+
+### 2. Backend (PHP)
+
+#### Database Connection (`db_connect.php`)
+```php
+<?php
+$host = 'localhost';
+$dbname = 'attendance_system';
+$username = 'root'; // Your MySQL username
+$password = '';    // Your MySQL password
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
+}
+?>
+```
+
+#### User Authentication (`login.php`)
+```php
+<?php
+session_start();
+require 'db_connect.php';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+    $stmt->execute([$username]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($user && password_verify($password, $user['password'])) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['role'] = $user['role'];
+        echo json_encode(['status' => 'success', 'role' => $user['role']]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid credentials']);
+    }
+    exit;
+}
+?>
+```
+
+#### Mark Attendance (`mark_attendance.php`)
+```php
+<?php
+session_start();
+require 'db_connect.php';
+
+if (!isset($_SESSION['user_id'])) {
+    echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $date = $_POST['date'];
+    $attendance = json_decode($_POST['attendance'], true); // Array of student_id => status
+
+    $stmt = $pdo->prepare("INSERT INTO attendance (student_id, date, status) 
+                           VALUES (?, ?, ?) 
+                           ON DUPLICATE KEY UPDATE status = ?");
+
+    foreach ($attendance as $student_id => $status) {
+        $stmt->execute([$student_id, $date, $status, $status]);
+    }
+
+    echo json_encode(['status' => 'success', 'message' => 'Attendance updated']);
+    exit;
+}
+?>
+```
+
+#### Fetch Students (`get_students.php`)
+```php
+<?php
+session_start();
+require 'db_connect.php';
+
+if (!isset($_SESSION['user_id'])) {
+    echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+    exit;
+}
+
+$stmt = $pdo->query("SELECT id, name, roll_no, class FROM students");
+$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+echo json_encode(['status' => 'success', 'students' => $students]);
+?>
+```
+
+#### Logout (`logout.php`)
+```php
+<?php
+session_start();
+session_destroy();
+header("Location: index.html");
+exit;
+?>
+```
+
+---
+
+### 3. Frontend (HTML, CSS, JavaScript with AJAX)
+
+#### Login Page (`index.html`)
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Attendance System</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-container { width: 300px; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        input { width: 100%; padding: 8px; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 5px; }
+        #message { color: red; text-align: center; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Login</h2>
+        <form id="loginForm">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Login</button>
+        </form>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#loginForm').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: 'login.php',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            window.location.href = response.role === 'admin' ? 'admin.html' : 'teacher.html';
+                        } else {
+                            $('#message').text(response.message);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+```
+
+#### Teacher Dashboard (`teacher.html`)
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; }
+        #message { color: green; text-align: center; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h2>Mark Attendance</h2>
+    <input type="date" id="attendanceDate" value="2025-02-22">
+    <button onclick="loadStudents()">Load Students</button>
+    <button onclick="saveAttendance()">Save Attendance</button>
+    <a href="logout.php"><button>Logout</button></a>
+    <table id="studentTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Roll No</th>
+                <th>Class</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div id="message"></div>
+
+    <script>
+        function loadStudents() {
+            const date = $('#attendanceDate').val();
+            $.ajax({
+                url: 'get_students.php',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        const tbody = $('#studentTable tbody');
+                        tbody.empty();
+                        response.students.forEach(student => {
+                            tbody.append(`
+                                <tr>
+                                    <td>${student.id}</td>
+                                    <td>${student.name}</td>
+                                    <td>${student.roll_no}</td>
+                                    <td>${student.class}</td>
+                                    <td>
+                                        <select class="status" data-id="${student.id}">
+                                            <option value="present">Present</option>
+                                            <option value="absent">Absent</option>
+                                            <option value="late">Late</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            `);
+                        });
+                    }
+                }
+            });
+        }
+
+        function saveAttendance() {
+            const date = $('#attendanceDate').val();
+            const attendance = {};
+            $('.status').each(function() {
+                const studentId = $(this).data('id');
+                attendance[studentId] = $(this).val();
+            });
+
+            $.ajax({
+                url: 'mark_attendance.php',
+                type: 'POST',
+                data: { date: date, attendance: JSON.stringify(attendance) },
+                dataType: 'json',
+                success: function(response) {
+                    $('#message').text(response.message);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+```
+
+#### Admin Dashboard (`admin.html`)
+For simplicity, this can extend the teacher dashboard with additional features like adding students or managing users. Here’s a basic version:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Admin Dashboard</h2>
+    <p>Welcome, Admin! You can manage users, students, and more here.</p>
+    <a href="teacher.html"><button>Mark Attendance</button></a>
+    <a href="logout.php"><button>Logout</button></a>
+</body>
+</html>
+```
+
+---
+
+### 4. Putting It All Together
+
+1. **Setup Environment**:
+   - Install XAMPP/WAMP/LAMP for PHP and MySQL.
+   - Place all files in your web server’s root directory (e.g., `htdocs` in XAMPP).
+
+2. **Directory Structure**:
+   ```
+   attendance_system/
+   ├── db_connect.php
+   ├── login.php
+   ├── mark_attendance.php
+   ├── get_students.php
+   ├── logout.php
+   ├── index.html
+   ├── teacher.html
+   └── admin.html
+   ```
+
+3. **Run the System**:
+   - Start your web server and MySQL.
+   - Import the SQL script into your database.
+   - Open `http://localhost/attendance_system/index.html` in your browser.
+
+4. **Test**:
+   - Login with `admin` or `teacher1` (generate hashed passwords using `password_hash('your_password', PASSWORD_DEFAULT)` in PHP and update the database).
+   - Mark attendance and verify it’s saved in the `attendance` table.
+
+---
+
+### Notes
+- **Security**: Use HTTPS in production, sanitize inputs, and add CSRF protection.
+- **Enhancements**: Add student management, attendance reports, or a more robust admin panel.
+- **Styling**: The CSS here is basic; you can enhance it with Bootstrap or custom styles.
+
+This provides a complete foundation for a student attendance system with user authentication using PHP, MySQL, and AJAX. Let me know if you’d like to expand any part!

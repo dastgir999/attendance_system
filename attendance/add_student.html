@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Student - Attendance System</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .student-container { width: 300px; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        input { width: 100%; padding: 8px; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 5px; }
+        #message { color: red; text-align: center; }
+        .nav-link { text-align: center; margin-top: 10px; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="student-container" id="studentContent" style="display: none;">
+        <h2>Add Student</h2>
+        <form id="studentForm">
+            <input type="text" name="name" placeholder="Student Name" required>
+            <input type="text" name="roll_no" placeholder="Roll Number" required>
+            <input type="text" name="class" placeholder="Class" required>
+            <button type="submit">Add Student</button>
+        </form>
+        <div id="message"></div>
+        <div class="nav-link">
+            <a href="admin.html">Back to Admin Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Check admin access
+            $.ajax({
+                url: 'check_admin.php',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $('#studentContent').show(); // Show form
+                        // Handle form submission
+                        $('#studentForm').submit(function(e) {
+                            e.preventDefault();
+                            $.ajax({
+                                url: 'add_student.php',
+                                type: 'POST',
+                                data: $(this).serialize(),
+                                dataType: 'json',
+                                success: function(response) {
+                                    if (response.status === 'success') {
+                                        $('#message').css('color', 'green').text(response.message);
+                                        $('#studentForm')[0].reset();
+                                    } else {
+                                        $('#message').css('color', 'red').text(response.message);
+                                    }
+                                }
+                            });
+                        });
+                    } else {
+                        $('#message').text(response.message);
+                        setTimeout(() => {
+                            if (response.message.includes('Unauthorized')) {
+                                window.location.href = 'index.html';
+                            } else {
+                                window.location.href = 'teacher.html';
+                            }
+                        }, 2000);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

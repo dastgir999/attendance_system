@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; margin: 5px; }
+        #message { color: red; text-align: center; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div id="adminContent" style="display: none;">
+        <h2>Admin Dashboard</h2>
+        <p>Welcome, Admin! You can manage users, students, and more here.</p>
+        <a href="teacher.html"><button>Mark Attendance</button></a>
+        <a href="add_student.html"><button>Add Student</button></a>
+        <a href="attendance_records.html"><button>View Attendance Records</button></a>
+        <a href="logout.php"><button>Logout</button></a>
+    </div>
+    <div id="message"></div>
+
+    <script>
+        $(document).ready(function() {
+            $.ajax({
+                url: 'check_admin.php',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $('#adminContent').show(); // Show admin content
+                    } else {
+                        $('#message').text(response.message);
+                        setTimeout(() => {
+                            if (response.message.includes('Unauthorized')) {
+                                window.location.href = 'index.html'; // Redirect to login
+                            } else {
+                                window.location.href = 'teacher.html'; // Redirect to teacher dashboard
+                            }
+                        }, 2000);
+                    }
+                },
+                error: function() {
+                    $('#message').text('An error occurred. Redirecting...');
+                    setTimeout(() => window.location.href = 'index.html', 2000);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

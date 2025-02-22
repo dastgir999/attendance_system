@@ -1,0 +1,227 @@
+Let’s add a registration page to the student attendance system. This will allow new users (e.g., teachers) to register, with an admin optionally approving or managing the accounts. Below, I’ll provide the necessary backend (PHP) and frontend (HTML, CSS, JavaScript with AJAX) code for the registration functionality, integrating it seamlessly with your existing system.
+
+---
+
+### Updated System Overview
+- **New File**: `register.php` (backend for handling registration).
+- **New Page**: `register.html` (frontend for the registration form).
+- **Modification**: Update `index.html` to include a link to the registration page.
+
+---
+
+### 1. Backend - Registration Logic (`register.php`)
+
+This script will handle user registration, ensuring usernames are unique and passwords are hashed securely.
+
+```php
+<?php
+require 'db_connect.php';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $username = trim($_POST['username']);
+    $password = $_POST['password'];
+    $role = 'teacher'; // Default role; admins can be assigned manually or via an admin panel
+
+    // Check if username already exists
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
+    $stmt->execute([$username]);
+    if ($stmt->fetchColumn() > 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Username already taken']);
+        exit;
+    }
+
+    // Hash the password
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+    // Insert new user
+    $stmt = $pdo->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
+    try {
+        $stmt->execute([$username, $hashed_password, $role]);
+        echo json_encode(['status' => 'success', 'message' => 'Registration successful! Please log in.']);
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Registration failed: ' . $e->getMessage()]);
+    }
+    exit;
+}
+?>
+```
+
+- **Notes**:
+  - Passwords are hashed using `password_hash()` for security.
+  - The default role is `teacher`. You could extend this to allow role selection or admin approval later.
+
+---
+
+### 2. Frontend - Registration Page (`register.html`)
+
+This page provides a simple form for users to register, styled consistently with `index.html`, and uses AJAX to submit the form.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register - Attendance System</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .register-container { width: 300px; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        input { width: 100%; padding: 8px; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 5px; }
+        #message { color: red; text-align: center; }
+        .login-link { text-align: center; margin-top: 10px; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="register-container">
+        <h2>Register</h2>
+        <form id="registerForm">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Register</button>
+        </form>
+        <div id="message"></div>
+        <div class="login-link">
+            <a href="index.html">Already have an account? Login here</a>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#registerForm').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: 'register.php',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            $('#message').css('color', 'green').text(response.message);
+                            setTimeout(() => window.location.href = 'index.html', 2000); // Redirect after 2 seconds
+                        } else {
+                            $('#message').css('color', 'red').text(response.message);
+                        }
+                    },
+                    error: function() {
+                        $('#message').text('An error occurred. Please try again.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+```
+
+- **Features**:
+  - Simple form with username and password fields.
+  - AJAX submission to `register.php`.
+  - Success message followed by redirection to the login page after 2 seconds.
+  - Link back to the login page.
+
+---
+
+### 3. Update Login Page (`index.html`)
+
+Add a link to the registration page at the bottom of the login form.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Attendance System</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-container { width: 300px; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        input { width: 100%; padding: 8px; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 5px; }
+        #message { color: red; text-align: center; }
+        .register-link { text-align: center; margin-top: 10px; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Login</h2>
+        <form id="loginForm">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Login</button>
+        </form>
+        <div id="message"></div>
+        <div class="register-link">
+            <a href="register.html">Don’t have an account? Register here</a>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#loginForm').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: 'login.php',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            window.location.href = response.role === 'admin' ? 'admin.html' : 'teacher.html';
+                        } else {
+                            $('#message').text(response.message);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+```
+
+- **Change**: Added a `<div class="register-link">` with a link to `register.html`.
+
+---
+
+### 4. Updated Directory Structure
+
+```
+attendance_system/
+├── db_connect.php
+├── login.php
+├── mark_attendance.php
+├── get_students.php
+├── logout.php
+├── register.php      <-- New file
+├── index.html
+├── teacher.html
+├── admin.html
+└── register.html     <-- New file
+```
+
+---
+
+### 5. How It Works
+
+1. **Registration**:
+   - Visit `register.html`.
+   - Enter a unique username and password.
+   - Submit the form. If successful, you’ll see a success message and be redirected to the login page after 2 seconds.
+
+2. **Login**:
+   - From `index.html`, use the newly registered credentials to log in.
+   - The system assigns the `teacher` role by default, redirecting to `teacher.html`.
+
+3. **Security**:
+   - Passwords are hashed in the database.
+   - Duplicate usernames are prevented.
+
+---
+
+### Optional Enhancements
+- **Admin Approval**: Add a `status` column to the `users` table (e.g., `pending`, `approved`) and require admin approval for new registrations.
+- **Password Confirmation**: Add a "Confirm Password" field in `register.html` and validate it client-side before submission.
+- **Styling**: Use a CSS framework like Bootstrap for a polished look.
+
+Let me know if you’d like to implement any of these enhancements or need further assistance!

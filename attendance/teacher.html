@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; }
+        #message { color: green; text-align: center; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h2>Mark Attendance</h2>
+    <input type="date" id="attendanceDate" value="2025-02-22">
+    <button onclick="loadStudents()">Load Students</button>
+    <button onclick="saveAttendance()">Save Attendance</button>
+    <!-- Inside the body, after the "Save Attendance" button -->
+<a href="attendance_records.html"><button>View Attendance Records</button></a>
+    <a href="logout.php"><button>Logout</button></a>
+    <table id="studentTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Roll No</th>
+                <th>Class</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div id="message"></div>
+
+    <script>
+        function loadStudents() {
+            const date = $('#attendanceDate').val();
+            $.ajax({
+                url: 'get_students.php',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        const tbody = $('#studentTable tbody');
+                        tbody.empty();
+                        response.students.forEach(student => {
+                            tbody.append(`
+                                <tr>
+                                    <td>${student.id}</td>
+                                    <td>${student.name}</td>
+                                    <td>${student.roll_no}</td>
+                                    <td>${student.class}</td>
+                                    <td>
+                                        <select class="status" data-id="${student.id}">
+                                            <option value="present">Present</option>
+                                            <option value="absent">Absent</option>
+                                            <option value="late">Late</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            `);
+                        });
+                    }
+                }
+            });
+        }
+
+        function saveAttendance() {
+            const date = $('#attendanceDate').val();
+            const attendance = {};
+            $('.status').each(function() {
+                const studentId = $(this).data('id');
+                attendance[studentId] = $(this).val();
+            });
+
+            $.ajax({
+                url: 'mark_attendance.php',
+                type: 'POST',
+                data: { date: date, attendance: JSON.stringify(attendance) },
+                dataType: 'json',
+                success: function(response) {
+                    $('#message').text(response.message);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
