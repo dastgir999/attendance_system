@@ -4,8 +4,20 @@
     <meta charset="UTF-8">
     <title>Login - Attendance System</title>
     <style>
-        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;flex-direction:column; color:red;font-weight: bold;}
+        body{
+            background: url('images/background.jpg');
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center;
+
+        }
         .login-container { width: 300px; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+            .login-container h2{
+                color: red;font-weight: bold;
+            }
+
+
         input { width: 100%; padding: 8px; margin: 10px 0; }
         button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 5px; }
         #message { color: red; text-align: center; }
@@ -14,6 +26,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
+        <h1>Basic Attendance Management System</h1>
     <div class="login-container">
         <h2>Login</h2>
         <form id="loginForm">
